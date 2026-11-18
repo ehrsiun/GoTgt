@@ -12,10 +12,10 @@ export const FRIENDS = [
 export function Gap({ h = 16 }) { return <div style={{ height: h, flex: "none" }} />; }
 
 /* Back button + optional centered title + optional right action */
-export function NavHeader({ title, right, onRight, onBack, close }) {
+export function NavHeader({ title, right, onRight, onBack, close, tight }) {
   const { back } = useProto();
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 0", flex: "none" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: tight ? 0 : "24px 0", height: tight ? 48 : undefined, flex: "none" }}>
       <Round kind="outline" icon={close ? "down" : "back"} onClick={onBack || back} label="back" />
       {title ? <span className="t-heading">{title}</span> : <span />}
       {right ? <button className="t-strong muted" onClick={onRight}>{right}</button> : <span style={{ width: 48 }} />}
@@ -27,8 +27,8 @@ export function NavHeader({ title, right, onRight, onBack, close }) {
 export function SetupHeader({ step, total = 4, skip, onSkip }) {
   const { back } = useProto();
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 0 8px", flex: "none" }}>
-      <Round kind="outline" icon="back" onClick={back} label="back" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 44, flex: "none" }}>
+      <Round kind="outline" icon="back" onClick={back} label="back" style={{ marginTop: -4 }} />
       <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
         {Array.from({ length: total }).map((_, i) => (
           <span key={i} style={{ width: i + 1 === step ? 22 : 8, height: 8, borderRadius: 4, background: i + 1 <= step ? "var(--ink)" : "var(--line)", transition: "width 320ms var(--ease-out)" }} />

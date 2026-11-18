@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { GUY_PARTS as P, GUY_PITCH, WORDMARK } from "@/lib/art";
+import { WORDMARK } from "@/lib/art";
 
 export const COLORS = { yellow: "var(--yellow)", blue: "var(--blue)", pink: "var(--pink)", green: "var(--green)" };
 
@@ -29,30 +29,8 @@ export function Face({ color = "yellow", look = "right", size = 48, open = false
   );
 }
 
-/* ---------------- Walking lil guys (one, a pair, or a chain holding hands) ----------------
-   Built from the hand-drawn chain art. Legs and free outer arms swing; held hands stay joined. */
-const H = (s) => ({ __html: s });
-export function Guys({ colors = ["yellow"], walking = true, height = 120, facing = "left", style, className = "" }) {
-  const n = colors.length;
-  const w = GUY_PITCH * (n - 1) + 266;
-  const solo = n === 1;
-  return (
-    <svg className={`guy ${walking ? "walking" : ""} ${className}`} viewBox={`0 0 ${w} 246`} height={height} width={(height * w) / 246}
-      style={{ overflow: "visible", transform: facing === "right" ? "scaleX(-1)" : undefined, ...style }} aria-hidden fill="none" strokeLinecap="round" strokeLinejoin="round">
-      {colors.map((c, i) => (
-        <g key={i} transform={`translate(${i * GUY_PITCH} 0)`} style={{ "--guy": COLORS[c] || c }}>
-          <g className="bob">
-            <g className="legB" dangerouslySetInnerHTML={H(P.backLeg + P.backFoot)} />
-            <g className="legF" dangerouslySetInnerHTML={H(P.frontLeg + P.frontFoot)} />
-            <g className={`armL ${i === 0 ? "swingL" : ""}`} dangerouslySetInnerHTML={H(P.leftArm + P.leftHandFill + P.leftHand)} />
-            <g dangerouslySetInnerHTML={H(P.body + P.eyeLFill + P.eyeL + P.eyeRFill + P.eyeR)} />
-            <g className={`armR ${i === n - 1 ? (solo ? "swingR" : "swingR") : ""}`} dangerouslySetInnerHTML={H(P.rightArm + P.rightHandFill + P.rightHand)} />
-          </g>
-        </g>
-      ))}
-    </svg>
-  );
-}
+/* Walking lil guys: frame-by-frame from the Figma walk cycle (components/walk.jsx). */
+export { Guys } from "./walk";
 
 export function Wordmark({ width = 153, className = "", style }) {
   return <span className={className} style={{ display: "inline-block", width, ...style }} dangerouslySetInnerHTML={{ __html: WORDMARK.replace('width="153" height="59"', `width="${width}" height="${(width * 59) / 153}"`) }} />;
@@ -81,15 +59,16 @@ export const Icon = {
 export function Button({ kind = "primary", size = "L", fill, children, onClick, style, className = "", ...rest }) {
   return <button className={`btn ${kind} ${size} ${fill ? "fill" : ""} ${className}`} onClick={onClick} style={style} {...rest}>{children}</button>;
 }
-export function Round({ kind = "outline", icon = "arrow", onClick, size = 48, label, ...rest }) {
+export function Round({ kind = "outline", icon = "arrow", onClick, size = 48, label, style, as, ...rest }) {
   const I = Icon[icon];
-  return <button className={`round ${kind}`} onClick={onClick} style={{ width: size, height: size }} aria-label={label || icon} {...rest}><I /></button>;
+  const Tag = as || "button";
+  return <Tag className={`round ${kind}`} onClick={onClick} style={{ width: size, height: size, ...style }} aria-label={label || icon} {...rest}><I /></Tag>;
 }
 export function Chip({ label, on, onClick }) {
   return <button className={`chip ${on ? "on" : ""}`} onClick={onClick}><Icon.plus />{label}</button>;
 }
-export function Pill({ label, on, onClick, style, grow }) {
-  return <button className={`pill ${on ? "on" : ""}`} onClick={onClick} style={{ flex: grow ? 1 : undefined, ...style }}>{label}</button>;
+export function Pill({ label, on, onClick, style, grow, dark }) {
+  return <button className={`pill ${on ? "on" : ""} ${dark ? "dark" : ""}`} onClick={onClick} style={{ flex: grow ? 1 : undefined, ...style }}>{label}</button>;
 }
 export function Toggle({ on, onChange }) {
   return (
@@ -144,7 +123,7 @@ export function Ticking({ start, className, style }) {
 
 export function PlanRow({ color, activity, meta, time, joined = 1, onClick, target }) {
   return (
-    <button className="row hair press" onClick={onClick} style={{ width: "100%", textAlign: "left", gap: 14, padding: "16px 0" }} data-fill-target={target ? "" : undefined}>
+    <button className="row hair press" onClick={onClick} style={{ width: "100%", textAlign: "left", gap: 14, padding: 0, height: 95 }} data-fill-target={target ? "" : undefined}>
       <Face color={color} look="right" size={48} blink />
       <span style={{ flex: 1, minWidth: 0 }}>
         <span className="t-title" style={{ display: "block" }}>{activity}</span>

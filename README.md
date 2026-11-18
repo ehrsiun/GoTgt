@@ -36,3 +36,9 @@ Import this repo on [vercel.com](https://vercel.com) → Add New → Project. Ve
 - **Lil guy fill** when you send a plan (your color) or join one (the host's color): a face grows from the button, blinks, and shrinks into what it lands on.
 - **Walk wipe** when you finish setup or head home after joining: a lil guy walks across pulling a curtain of his color.
 - **Hand-holding walk** on "you're in" for 2 or 3 people; only the outer arms swing.
+
+## Motion, matched to Figma
+
+- `components/walk.jsx` + `lib/frames.js` — the lil guys are a frame-by-frame flipbook of the 32-frame Figma walk cycle (2 s loop). Chains hold hands with the same held-arm parts as the Figma duo/trio loops.
+- `lib/splash.js` + `lib/timeline.js` — the splash plays the exported Figma keyframes (times, values and easing curves), then dissolves to Home at 10 s.
+- `components/proto.jsx` — screen transitions use the Figma prototype timings: push 0.3 s, move in 0.3 s / out 0.25 s, dissolve 0.2 s, tabs 0.3 s; fill and walk transitions follow the "T ·" frames.

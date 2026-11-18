@@ -1,42 +1,76 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { SPLASH } from "@/lib/splash";
+import { valueAt } from "@/lib/timeline";
+import { markup } from "../walk";
 import { useProto, Screen } from "../proto";
 import { Face, Guys, Wordmark, Button, Marker, Toggle, Pill, Icon, Round } from "../ui";
 import { Gap, SetupHeader, NavHeader, FRIENDS } from "./common";
 
 /* ---------------- 0 · Splash ----------------
-   Wordmark → lil guys pop into the "o" and "g" → they look at each other →
-   wordmark fades → they meet and walk off hand in hand → fade to Home. */
+   Played straight from the Figma timeline ("GoTgt wordmark animation", 12 s):
+   lil guys pop into the "o" and "g", look at each other, draw their limbs,
+   the wordmark fades, they meet hand in hand and walk; tagline rises;
+   at 10 s it dissolves to Home (0.3 s ease-out), like the prototype. */
+const PAD = 3.945; // half stroke: exported SVGs are padded by it
+function SplashPart({ k }) {
+  const pad = k.svg.includes("stroke=") ? PAD : 0;
+  return (
+    <g transform={`translate(${k.x - pad} ${k.y - pad})`}>
+      <g data-part="" className="sp-part" dangerouslySetInnerHTML={{ __html: k.svg }} />
+    </g>
+  );
+}
 export function Splash() {
   const { go } = useProto();
-  const [ph, setPh] = useState(0);
+  const root = useRef(null);
+  const [loop, setLoop] = useState(false);
+  const [held, setHeld] = useState(false);
   useEffect(() => {
-    const ts = [[1, 450], [2, 1500], [3, 2400], [4, 3300], [5, 6200]].map(([p, t]) => setTimeout(() => setPh(p), t));
-    return () => ts.forEach(clearTimeout);
-  }, []);
-  useEffect(() => { if (ph === 5) go("home", { t: "slowfade", reset: true }); }, [ph, go]);
-  const W = 330, k = W / 153;
-  const letterFade = { transition: "opacity 600ms var(--ease-in-out)", opacity: ph >= 3 ? 0 : 1 };
+    const el = root.current; if (!el) return;
+    const parts = [...el.querySelectorAll("[data-anim]")].map((n) => ({ n, tr: JSON.parse(n.dataset.anim), trim: n.dataset.trim === "1" }));
+    const t0 = performance.now();
+    let raf, gone = false;
+    const tick = (now) => {
+      const t = (now - t0) / 1000;
+      for (const { n, tr, trim } of parts) {
+        const o = valueAt(tr.OPACITY, t, 1);
+        const tx = valueAt(tr.TRANSLATION_X, t, 0), ty = valueAt(tr.TRANSLATION_Y, t, 0);
+        const sx = valueAt(tr.SCALE_X, t, 1), sy = valueAt(tr.SCALE_Y, t, 1);
+        n.style.opacity = o;
+        n.style.transform = `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
+        if (trim) { const v = valueAt(tr.PATH_TRIM_END, t, 1); n.querySelectorAll("path").forEach((p) => (p.style.strokeDashoffset = 1 - v)); }
+      }
+      if (t >= SPLASH.held.start) setHeld(true);
+      if (t >= SPLASH.held.loop) setLoop(true);
+      if (t >= 10 && !gone) { gone = true; go("home", { t: "dissolve", reset: true }); }
+      if (t < 12) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [go]);
+  const W = SPLASH.held, k = 350 / 1044;
   return (
-    <div className="screen" style={{ alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setPh(5)}>
-      <div style={{ position: "relative", width: W, height: 59 * k }}>
-        <div style={letterFade}>
-          <style>{`.splash-wm .wm-o,.splash-wm .wm-g{transition:opacity 300ms;opacity:${ph >= 1 ? 0 : 1}}`}</style>
-          <Wordmark width={W} className="splash-wm" />
-        </div>
-        {ph >= 1 && ph < 4 && (
-          <>
-            <Face color="yellow" size={66} look={ph >= 2 ? "right" : "down"} style={{ position: "absolute", left: 57.2 * k - 33, top: 26.8 * k - 33, animation: "popIn 500ms var(--ease-out) both", ...letterFade, opacity: ph >= 3 ? 0 : 1 }} />
-            <Face color="green" size={62} look={ph >= 2 ? "left" : "down"} style={{ position: "absolute", left: 112.5 * k - 31, top: 26.2 * k - 31, animation: "popIn 500ms 160ms var(--ease-out) both", ...letterFade, opacity: ph >= 3 ? 0 : 1 }} />
-          </>
+    <div className="screen" style={{ alignItems: "center", cursor: "pointer", padding: 0 }} onClick={() => go("home", { t: "dissolve", reset: true })}>
+      <svg ref={root} viewBox="0 0 1044 520" width={350} height={520 * k} style={{ position: "absolute", left: "50%", top: "calc(50% - 117px)", marginLeft: -175, overflow: "visible" }} fill="none" aria-label="GoTgt">
+        <g data-anim={JSON.stringify(SPLASH.wordmark.tr)} className="sp-part">
+          <path transform={`translate(${SPLASH.wordmark.x} ${SPLASH.wordmark.y})`} d={SPLASH.wordmark.d} fill="var(--ink)" />
+        </g>
+        {["yellow", "green"].map((c) => (
+          <g key={c} data-anim={JSON.stringify(SPLASH[c].tr)} style={{ color: "var(--ink)" }}>
+            {SPLASH[c].kids.map((p) => (
+              <g key={p.n} data-anim={JSON.stringify(p.tr)} data-trim={p.tr.PATH_TRIM_END ? "1" : "0"} className="sp-part">
+                <SplashPart k={p} />
+              </g>
+            ))}
+          </g>
+        ))}
+        {held && (
+          <g transform={`translate(${W.yBody + 102.373} 196)`} className="guys" stroke="var(--ink)" strokeWidth="7.8" strokeLinecap="round" strokeLinejoin="round"
+            dangerouslySetInnerHTML={{ __html: markup(["yellow", "green"], loop) }} />
         )}
-        {ph >= 3 && (
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-45%)", animation: "fadeIn 600ms 200ms both" }}>
-            <Guys colors={["yellow", "green"]} height={120} walking={ph >= 4} />
-          </div>
-        )}
-      </div>
-      <p className="t-bodyl" style={{ position: "absolute", bottom: 150, opacity: ph >= 4 ? 1 : 0, transform: ph >= 4 ? "none" : "translateY(8px)", transition: "all 700ms var(--ease-out)" }}>Let&apos;s go together!</p>
+      </svg>
+      <p className="t-bodyl" data-tagline="" style={{ position: "absolute", left: 24, right: 24, top: "calc(50% + 263px)", textAlign: "center", fontSize: 17, animation: "splashTag 997ms cubic-bezier(.5,0,.5,1) 6184ms both" }}>Let&apos;s go together!</p>
     </div>
   );
 }
@@ -47,8 +81,8 @@ export function Invite() {
   return (
     <Screen>
       <Gap h={40} />
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
-        <Guys colors={["yellow"]} height={150} facing="right" />
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
+        <div style={{ width: 178, height: 170, position: "relative", flex: "none" }}><div style={{ position: "absolute", left: -28, top: -6 }}><Guys colors={["yellow"]} height={178} facing="right" /></div></div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <Face open size={96} />
           <span className="t-caption muted">open spot</span>
@@ -191,7 +225,7 @@ export function FriendsSetup() {
   return (
     <Screen>
       <SetupHeader step={1} />
-      <Gap h={20} />
+      <Gap h={18} />
       <h1 className="t-l">add your<br />friends</h1>
       <Gap h={12} />
       <p className="t-body muted">Only friends you add can see your plans.</p>
@@ -220,7 +254,7 @@ export function CirclesSetup() {
   return (
     <Screen>
       <SetupHeader step={2} />
-      <Gap h={20} />
+      <Gap h={28} />
       <h1 className="t-l">what are<br />you into?</h1>
       <Gap h={12} />
       <p className="t-body muted">Circles group your friends by shared interests. Only you can see who is in your circles.</p>
@@ -251,7 +285,7 @@ export function Pings() {
   return (
     <Screen>
       <SetupHeader step={3} />
-      <Gap h={20} />
+      <Gap h={28} />
       <h1 className="t-l">hear when<br />friends head out</h1>
       <Gap h={12} />
       <p className="t-body muted">Choose which circles can notify you when a plan is posted.</p>
@@ -283,7 +317,7 @@ export function StartCircle() {
   return (
     <Screen>
       <SetupHeader step={4} skip onSkip={done} />
-      <Gap h={20} />
+      <Gap h={28} />
       <h1 className="t-l">start your<br />own circle</h1>
       <Gap h={12} />
       <p className="t-body muted">Name a circle and choose which friends are in it. You can edit it later.</p>

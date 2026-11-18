@@ -27,7 +27,7 @@ export const SCREENS = {
   endPlan: { C: M.EndPlan },
   ended: { C: M.Ended },
   active: { C: M.Active, tab: "active" },
-  lock: { C: R.Lock, lightStatus: true },
+  lock: { C: R.Lock, noStatus: true },
   detail: { C: R.Detail },
   options: { C: R.Options },
   youreIn: { C: R.YoureIn },

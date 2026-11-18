@@ -66,7 +66,7 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 
 /* ---------- stage + layers ---------- */
 .stage { position: absolute; inset: 0; overflow: hidden; }
-.layer { position: absolute; inset: 0; background: var(--paper); }
+.layer { position: absolute; inset: 0; background: var(--paper); isolation: isolate; }
 .layer.noink { pointer-events: none; }
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 62px 24px 34px; overflow: hidden; background: var(--paper); }
 .screen.tabbed { padding-bottom: 96px; }
@@ -74,25 +74,26 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 .scroll::-webkit-scrollbar { display: none; }
 .spacer { flex: 1 1 auto; min-height: 12px; }
 
+/* Figma easing: EASE_OUT = (0,0,.58,1), EASE_IN_AND_OUT = (.42,0,.58,1) */
 @keyframes inRight { from { transform: translateX(100%); } to { transform: none; } }
-@keyframes outLeft { from { transform: none; } to { transform: translateX(-30%); } }
+@keyframes outLeft { from { transform: none; } to { transform: translateX(-100%); } }
 @keyframes outRight { from { transform: none; } to { transform: translateX(100%); } }
-@keyframes inLeft { from { transform: translateX(-30%); } to { transform: none; } }
+@keyframes inLeft { from { transform: translateX(-100%); } to { transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes sheetDown { from { transform: none; } to { transform: translateY(100%); } }
-.a-inRight { animation: inRight var(--base) var(--ease-out) both; }
-.a-outLeft { animation: outLeft var(--base) var(--ease-out) both; }
-.a-outRight { animation: outRight var(--base) var(--ease-out) both; }
-.a-inLeft { animation: inLeft var(--base) var(--ease-out) both; }
-.a-fadeIn { animation: fadeIn var(--base) var(--ease-in-out) both; }
-.a-fadeInSlow { animation: fadeIn 700ms var(--ease-in-out) both; }
-.a-tabIn { animation: fadeIn 200ms ease both; }
-.sheet-enter .sheet-panel { animation: sheetUp var(--base) var(--ease-out) both; }
-.sheet-enter .scrim { animation: fadeIn var(--base) ease both; }
-.sheet-exit .sheet-panel { animation: sheetDown 260ms cubic-bezier(0.4, 0, 1, 1) both; }
-.sheet-exit .scrim { animation: fadeOut 260ms ease both; }
+.a-inRight { animation: inRight 300ms cubic-bezier(0, 0, .58, 1) both; }
+.a-outLeft { animation: outLeft 300ms cubic-bezier(0, 0, .58, 1) both; }
+.a-outRight { animation: outRight 300ms cubic-bezier(0, 0, .58, 1) both; }
+.a-inLeft { animation: inLeft 300ms cubic-bezier(0, 0, .58, 1) both; }
+.a-fadeIn { animation: fadeIn 200ms cubic-bezier(0, 0, .58, 1) both; }
+.a-dissolve { animation: fadeIn 300ms cubic-bezier(0, 0, .58, 1) both; }
+.a-tabIn { animation: fadeIn 300ms cubic-bezier(.42, 0, .58, 1) both; }
+.sheet-enter .sheet-panel { animation: sheetUp 300ms cubic-bezier(0, 0, .58, 1) both; }
+.sheet-enter .scrim { animation: fadeIn 300ms cubic-bezier(0, 0, .58, 1) both; }
+.sheet-exit .sheet-panel { animation: sheetDown 250ms cubic-bezier(0, 0, .58, 1) both; }
+.sheet-exit .scrim { animation: fadeOut 250ms cubic-bezier(0, 0, .58, 1) both; }
 
 /* ---------- status bar ---------- */
 .statusbar { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 46px; z-index: 30; pointer-events: none; font-weight: 600; font-size: 17px; }
@@ -123,13 +124,13 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 .round.ink { background: var(--ink); color: var(--paper); }
 
 /* ---------- chips / pills ---------- */
-.chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 10px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--ink); font-size: 15px; white-space: nowrap; transition: background var(--fast), color var(--fast), transform 160ms var(--ease-out); }
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 15px 0 13px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--muted); font-size: 15px; white-space: nowrap; transition: background 250ms cubic-bezier(0,0,.58,1), color 250ms cubic-bezier(0,0,.58,1), box-shadow 250ms, transform 160ms var(--ease-out); }
 .chip svg { transition: transform var(--base) var(--ease-out); }
-.chip.on { background: var(--ink); color: var(--paper); }
-.chip.on svg { transform: rotate(90deg); }
+.chip.on { background: var(--ink); color: var(--paper); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .chip:active { transform: scale(0.95); }
 .pill { height: 36px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; box-shadow: inset 0 0 0 1.5px var(--line); background: var(--paper); transition: background var(--fast), color var(--fast), box-shadow var(--fast), transform 160ms var(--ease-out); white-space: nowrap; }
 .pill.on { background: var(--ink); color: var(--paper); box-shadow: none; }
+.pill.dark:not(.on) { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .pill:active { transform: scale(0.95); }
 
 /* ---------- toggle ---------- */
@@ -165,30 +166,18 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 .face.blink .eyes rect { animation: blink 4.2s infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
 
-/* ---------- walking lil guys ---------- */
-.guy .legF, .guy .legB, .guy .armL, .guy .armR, .guy .torso { transform-box: view-box; }
-.guy .legF { transform-origin: 125px 204px; }
-.guy .legB { transform-origin: 156px 209px; }
-.guy .armL { transform-origin: 61px 172px; }
-.guy .armR { transform-origin: 177px 167px; }
-.walking .legF { animation: legSwing 0.72s ease-in-out infinite; }
-.walking .legB { animation: legSwing 0.72s ease-in-out infinite reverse; }
-.walking .bob { animation: bob 0.36s ease-in-out infinite alternate; }
-.walking .swingL { animation: armSwing 0.72s ease-in-out infinite; }
-.walking .swingR { animation: armSwing 0.72s ease-in-out infinite reverse; }
-@keyframes legSwing { 0%, 100% { transform: rotate(-16deg); } 50% { transform: rotate(14deg); } }
-@keyframes armSwing { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(10deg); } }
-@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-7px); } }
+/* ---------- walking lil guys: one frame visible per 1/32 of the 2s cycle ---------- */
+.guys .wf { visibility: hidden; animation: wf 2s step-end infinite; }
+@keyframes wf { 0% { visibility: visible; } 3.125%, 100% { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .guys .wf { animation: none; } .guys .wf:first-child { visibility: visible; } }
 
 /* ---------- misc ---------- */
-.marker { position: relative; display: inline-block; padding: 0 4px; }
-.marker::before { content: ""; position: absolute; left: 0; right: 0; bottom: 8px; height: 18%; background: var(--mk, var(--yellow)); z-index: -1; transform-origin: left; animation: markIn 600ms 150ms var(--ease-out) both; }
+.marker { position: relative; display: inline-block; padding-left: 4px; isolation: isolate; }
+.marker::before { content: ""; position: absolute; left: 0; right: 0.18em; top: 58%; height: 27%; background: var(--mk, var(--yellow)); z-index: -1; transform-origin: left; animation: markIn 600ms 150ms var(--ease-out) both; }
 @keyframes markIn { from { transform: scaleX(0); } to { transform: none; } }
 .marker > span { position: relative; }
 .card { background: var(--paper); border-radius: 28px; }
 .swatch { border-radius: 14px; flex: none; }
-.tap-ripple { position: absolute; border-radius: 50%; background: rgba(37, 37, 37, 0.12); pointer-events: none; transform: translate(-50%, -50%) scale(0); animation: ripple 500ms ease-out forwards; z-index: 60; }
-@keyframes ripple { to { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
 @keyframes popIn { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .rise { animation: riseIn 520ms var(--ease-out) both; }
@@ -198,8 +187,8 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 @keyframes cardIn { from { transform: scale(0.94) translateY(12px); } to { transform: none; } }
 @keyframes upIn { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes downOut { from { transform: none; } to { transform: translateY(100%); } }
-.a-up { animation: upIn 360ms var(--ease-out) both; }
-.a-down { animation: downOut 300ms cubic-bezier(0.4, 0, 1, 1) both; }
+.a-up { animation: upIn 300ms cubic-bezier(0, 0, .58, 1) both; }
+.a-down { animation: downOut 250ms cubic-bezier(0, 0, .58, 1) both; }
 .sheet-host > .layer { z-index: 0; isolation: isolate; }
 .sheet-host > .scrim { z-index: 1; }
 .sheet-host > .sheet-panel { z-index: 2; }
@@ -209,3 +198,11 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 .screen > * { flex-shrink: 0; }
 .sheet-panel { overflow-y: auto; scrollbar-width: none; }
 .sheet-panel > * { flex-shrink: 0; }
+
+/* splash parts scale around their own centre, like Figma */
+.sp-part { transform-box: fill-box; transform-origin: center; }
+@keyframes splashTag { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.live-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--green); animation: livePulse 1.6s ease-in-out infinite; }
+@keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(67, 246, 151, 0.5); } 50% { box-shadow: 0 0 0 5px rgba(67, 246, 151, 0); } }
+.notif-in { animation: notifIn 500ms cubic-bezier(0, 0, .58, 1) both; }
+@keyframes notifIn { from { opacity: 0; transform: translateY(-16px) scale(0.96); } to { opacity: 1; transform: none; } }

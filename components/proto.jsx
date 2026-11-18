@@ -4,7 +4,9 @@ import { Face, Guys, StatusBar, Icon } from "./ui";
 
 /* ------------------------------------------------------------------
    Navigation + transitions for the prototype.
-   go(id, { t })  t = push | fade | tab | sheet | none | fill | walk
+   go(id, { t })  t = push | dissolve | fade | tab | up | sheet | none | fill | walk
+   Timings follow the Figma prototype: push 0.3 ease-out, move-in 0.3 ease-out,
+   move-out 0.25 ease-out, dissolve 0.2 ease-out, tabs smart-animate 0.3 ease-in-out.
    back()          reverses whatever transition opened the screen.
 ------------------------------------------------------------------- */
 const ProtoCtx = createContext(null);
@@ -12,7 +14,8 @@ const LayerCtx = createContext({ hideTab: false, inert: false });
 export const useProto = () => useContext(ProtoCtx);
 export const useLayer = () => useContext(LayerCtx);
 
-const REVERSE = { up: "down", push: "pop", sheet: "sheetDown", fade: "fade", tab: "tab", fill: "fade", walk: "fade", none: "fade" };
+const REVERSE = { up: "down", push: "pop", sheet: "sheetDown", fade: "fade", dissolve: "fade", tab: "tab", fill: "down", walk: "fade", none: "fade" };
+const MS = { up: 300, down: 250, push: 300, pop: 300, fade: 200, dissolve: 300, tab: 300, sheet: 300, sheetDown: 250 };
 
 export function Proto({ screens, start = "splash", children }) {
   const [stack, setStack] = useState([{ id: start, t: "none" }]);
@@ -22,12 +25,16 @@ export function Proto({ screens, start = "splash", children }) {
   const busy = useRef(false);
   const cur = stack[stack.length - 1].id;
 
+  // Where a fill transition starts: the centre of the tapped button (like the Figma "T ·" frames).
   const point = useCallback((e) => {
     const el = stageRef.current; if (!el || !e) return null;
     const r = el.getBoundingClientRect(); const k = el.offsetWidth / r.width;
+    const t = e.currentTarget && e.currentTarget.getBoundingClientRect ? e.currentTarget.getBoundingClientRect() : null;
+    if (t) return { x: (t.left + t.width / 2 - r.left) * k, y: (t.top + t.height / 2 - r.top) * k };
     const p = e.touches ? e.touches[0] : e;
     return { x: (p.clientX - r.left) * k, y: (p.clientY - r.top) * k };
   }, []);
+  const params = useRef({});
 
   const commit = useCallback((to, type, mode = "push") => {
     setStack((s) => {
@@ -42,6 +49,7 @@ export function Proto({ screens, start = "splash", children }) {
   const go = useCallback((to, opts = {}) => {
     if (busy.current) return;
     const t = opts.t || "push";
+    params.current[to] = opts.params || null;
     const mode = opts.mode || (["tab", "walk"].includes(t) || opts.reset ? "reset" : "push");
     if (t === "fill" || t === "walk") {
       busy.current = true;
@@ -67,12 +75,11 @@ export function Proto({ screens, start = "splash", children }) {
   // finish CSS transitions
   useEffect(() => {
     if (!trans) return;
-    const ms = { up: 360, down: 300, push: 330, pop: 330, fade: 340, tab: 210, sheet: 330, sheetDown: 270, slowfade: 720 }[trans.type] || 340;
-    const id = setTimeout(() => setTrans(null), ms + 30);
+    const id = setTimeout(() => setTrans(null), (MS[trans.type] || 300) + 40);
     return () => clearTimeout(id);
   }, [trans]);
 
-  const ctx = useMemo(() => ({ go, back, reset, cur, point, stageRef, screens }), [go, back, reset, cur, point, screens]);
+  const ctx = useMemo(() => ({ go, back, reset, cur, point, stageRef, screens, params: params.current }), [go, back, reset, cur, point, screens]);
   const meta = (id) => screens[id] || {};
   const tabOf = (id) => meta(id).tab;
 
@@ -83,18 +90,20 @@ export function Proto({ screens, start = "splash", children }) {
   if (!trans) layers = [Layer({ id: cur, hideTab: !!tabOf(cur) })];
   else {
     const { from, to, type } = trans;
+    // keep the outgoing screen mounted (same key as before) so it doesn't restart mid-transition
+    const fk = from === to ? "f" + from : from;
     const hideTo = type === "tab";
     const hideFrom = type === "tab";
     const map = {
-      push: [Layer({ k: "f" + from, id: from, cls: "a-outLeft", hideTab: hideFrom, inert: true }), Layer({ k: to, id: to, cls: "a-inRight", hideTab: hideTo })],
-      pop: [Layer({ k: to, id: to, cls: "a-inLeft", hideTab: hideTo }), Layer({ k: "f" + from, id: from, cls: "a-outRight", hideTab: hideFrom, inert: true })],
-      fade: [Layer({ k: "f" + from, id: from, inert: true }), Layer({ k: to, id: to, cls: "a-fadeIn" })],
-      slowfade: [Layer({ k: "f" + from, id: from, inert: true }), Layer({ k: to, id: to, cls: "a-fadeInSlow" })],
-      tab: [Layer({ k: "f" + from, id: from, hideTab: true, inert: true }), Layer({ k: to, id: to, cls: "a-tabIn", hideTab: true })],
-      up: [Layer({ k: "f" + from, id: from, inert: true, hideTab: false }), Layer({ k: to, id: to, cls: "a-up" })],
-      down: [Layer({ k: to, id: to }), Layer({ k: "f" + from, id: from, cls: "a-down", inert: true })],
+      push: [Layer({ k: fk, id: from, cls: "a-outLeft", hideTab: hideFrom, inert: true }), Layer({ k: to, id: to, cls: "a-inRight", hideTab: hideTo })],
+      pop: [Layer({ k: to, id: to, cls: "a-inLeft", hideTab: hideTo }), Layer({ k: fk, id: from, cls: "a-outRight", hideTab: hideFrom, inert: true })],
+      fade: [Layer({ k: fk, id: from, inert: true }), Layer({ k: to, id: to, cls: "a-fadeIn" })],
+      dissolve: [Layer({ k: fk, id: from, inert: true }), Layer({ k: to, id: to, cls: "a-dissolve" })],
+      tab: [Layer({ k: fk, id: from, hideTab: true, inert: true }), Layer({ k: to, id: to, cls: "a-tabIn", hideTab: true })],
+      up: [Layer({ k: fk, id: from, inert: true, hideTab: false }), Layer({ k: to, id: to, cls: "a-up" })],
+      down: [Layer({ k: to, id: to }), Layer({ k: fk, id: from, cls: "a-down", inert: true })],
       sheet: [Layer({ k: to, id: to, cls: "sheet-enter" })],
-      sheetDown: [Layer({ k: to, id: to }), Layer({ k: "f" + from, id: from, cls: "sheet-exit", inert: true })],
+      sheetDown: [Layer({ k: to, id: to }), Layer({ k: fk, id: from, cls: "sheet-exit", inert: true })],
     };
     layers = map[type] || [Layer({ k: to, id: to })];
   }
@@ -108,23 +117,12 @@ export function Proto({ screens, start = "splash", children }) {
             {layers}
             {stageTab && <TabBar current={stageTab} />}
             {overlay && <Overlay o={overlay} stageRef={stageRef} onSwap={() => commit(overlay.to, "none", overlay.mode)} onDone={() => { busy.current = false; setOverlay(null); }} />}
-            <Ripples stageRef={stageRef} point={point} />
           </div>
-          <StatusBar light={!!meta(trans ? trans.to : cur).lightStatus && !overlay} />
+          {!(meta(trans ? trans.to : cur).noStatus && !overlay) && <StatusBar light={!!meta(trans ? trans.to : cur).lightStatus && !overlay} />}
         </div>
       </div>
     </ProtoCtx.Provider>
   );
-}
-
-function Ripples({ stageRef, point }) {
-  const [ripples, setRipples] = useState([]);
-  useEffect(() => {
-    const el = stageRef.current; if (!el) return;
-    const onDown = (e) => { const p = point(e); if (!p) return; const id = Math.random(); setRipples((r) => [...r, { ...p, id }]); setTimeout(() => setRipples((r) => r.filter((x) => x.id !== id)), 520); };
-    el.addEventListener("pointerdown", onDown); return () => el.removeEventListener("pointerdown", onDown);
-  }, [stageRef, point]);
-  return ripples.map((r) => <span key={r.id} className="tap-ripple" style={{ left: r.x, top: r.y, width: 90, height: 90 }} />);
 }
 
 const LayerView = memo(function LayerView({ C, id, cls, hideTab, inert }) {
@@ -184,23 +182,26 @@ export function TabBar({ current }) {
   );
 }
 
-/* ---------------- Lil guy transitions ----------------
-   fill: a face grows from the tapped button to cover the screen, blinks,
-         then shrinks into the thing it lands on in the next screen.
-   walk: a lil guy walks across pulling a curtain of his color, then the
-         curtain keeps going to reveal the next screen. */
+/* ---------------- Lil guy transitions (timed from the Figma "T ·" frames) ----------------
+   fill:  a face grows from the tapped button to cover the screen (0.57 s), its eyes
+          open; held until 1 s. The next screen swaps in underneath, the face blinks,
+          then shrinks into the thing it lands on (0.6 s).
+   walk:  a lil guy walks right-to-left pulling a curtain of his color (1.1 s),
+          then the curtain slides off to reveal the next screen (0.5 s, ease-out). */
+const IO = "cubic-bezier(.42,0,.58,1)", OUT = "cubic-bezier(0,0,.58,1)";
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function Overlay({ o, stageRef, onSwap, onDone }) {
-  const circle = useRef(null), eyes = useRef(null), panel = useRef(null), walker = useRef(null);
+  const move = useRef(null), circle = useRef(null), eyesMove = useRef(null), eyes = useRef(null), panel = useRef(null), walker = useRef(null);
   useLayoutEffect(() => {
     let alive = true;
     const run = async () => {
       if (o.kind === "fill") {
-        const c = circle.current, e = eyes.current;
-        const up = [0.01, 0.3, 1, 2.5, 6, 12, 17];
-        await Promise.all([
-          c.animate(up.map((s) => ({ transform: `translate(-50%,-50%) scale(${s})` })), { duration: 460, easing: "linear", fill: "forwards" }).finished,
-          e.animate([{ opacity: 0, transform: "translate(-50%,-50%) translateY(16px)" }, { opacity: 0, offset: 0.6 }, { opacity: 1, transform: "translate(-50%,-50%)" }], { duration: 500, easing: "ease-out", fill: "forwards" }).finished,
-        ]);
+        const c = circle.current, e = eyes.current, em = eyesMove.current;
+        const grow = [[0, 0.01], [0.1, 0.3], [0.2, 1], [0.3, 2.5], [0.4, 6], [0.5, 12], [0.574, 17]];
+        c.animate(grow.map(([t, v]) => ({ offset: t / 0.574, transform: `scale(${v})` })), { duration: 574, easing: "linear", fill: "forwards" });
+        em.animate([{ offset: 0, transform: "translateY(16px)" }, { offset: 0.35 / 0.6, transform: "translateY(16px)", easing: IO }, { offset: 1, transform: "none" }], { duration: 600, fill: "forwards" });
+        em.animate([{ offset: 0, opacity: 0 }, { offset: 0.35 / 0.525, opacity: 0, easing: IO }, { offset: 1, opacity: 1 }], { duration: 525, fill: "forwards", composite: "replace" });
+        await wait(1000);
         if (!alive) return;
         onSwap();
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -208,28 +209,27 @@ function Overlay({ o, stageRef, onSwap, onDone }) {
         let tx = 201, ty = 437;
         if (t) { const sr = st.getBoundingClientRect(), tr = t.getBoundingClientRect(), k = st.offsetWidth / sr.width; tx = (tr.left - sr.left + tr.width / 2) * k; ty = (tr.top - sr.top + tr.height / 2) * k; }
         const dx = tx - o.from.x, dy = ty - o.from.y, ex = tx - 201, ey = ty - 380;
-        const dn = [17, 17, 9, 4, 1.6, 0.5, 0.01];
+        const D = 600, f = (s) => s / 0.6;
+        const shrink = [[0, 17], [0.14, 17], [0.24, 9], [0.33, 4], [0.42, 1.6], [0.5, 0.5], [0.58, 0.01], [0.6, 0.01]];
         await Promise.all([
-          c.animate(dn.map((s, i) => ({ transform: `translate(-50%,-50%) translate(${i < 2 ? 0 : dx * Math.min(1, (i - 1) / 4.5)}px, ${i < 2 ? 0 : dy * Math.min(1, (i - 1) / 4.5)}px) scale(${s})`, opacity: i === 6 ? 0 : 1 })), { duration: 620, easing: "linear", fill: "forwards" }).finished,
+          c.animate(shrink.map(([t, v]) => ({ offset: f(t), transform: `scale(${v})`, opacity: t < 0.5 ? 1 : t >= 0.58 ? 0 : 1 - (t - 0.5) / 0.08 })), { duration: D, easing: "linear", fill: "forwards" }).finished,
+          move.current.animate([{ offset: 0, transform: "none", easing: IO }, { offset: f(0.56), transform: `translate(${dx}px, ${dy}px)` }, { offset: 1, transform: `translate(${dx}px, ${dy}px)` }], { duration: D, fill: "forwards" }).finished,
+          em.animate([{ offset: 0, opacity: 1, transform: "none" }, { offset: f(0.14), opacity: 1, transform: "none", easing: IO }, { offset: f(0.4), opacity: 1, transform: `translate(${ex * 0.85}px, ${ey * 0.85}px)` }, { offset: f(0.48), opacity: 0, transform: `translate(${ex}px, ${ey}px)` }, { offset: 1, opacity: 0, transform: `translate(${ex}px, ${ey}px)` }], { duration: D, fill: "forwards" }).finished,
           e.animate([
-            { transform: "translate(-50%,-50%) scaleY(1)", opacity: 1 },
-            { transform: "translate(-50%,-50%) scaleY(0.1)", opacity: 1, offset: 0.08 },
-            { transform: "translate(-50%,-50%) scaleY(1)", opacity: 1, offset: 0.18 },
-            { transform: "translate(-50%,-50%) scaleY(1)", opacity: 1, offset: 0.24 },
-            { transform: `translate(-50%,-50%) translate(${ex}px, ${ey}px) scale(0.15)`, opacity: 0, offset: 0.8 },
-            { transform: `translate(-50%,-50%) translate(${ex}px, ${ey}px) scale(0.15)`, opacity: 0 },
-          ], { duration: 620, easing: "ease-in-out", fill: "forwards" }).finished,
+            { offset: 0, transform: "scale(1, 1)", easing: IO }, { offset: f(0.05), transform: "scale(1, 0.1)", easing: IO }, { offset: f(0.11), transform: "scale(1, 1)" },
+            { offset: f(0.2), transform: "scale(1, 1)", easing: IO }, { offset: f(0.48), transform: "scale(0.15, 0.15)" }, { offset: 1, transform: "scale(0.15, 0.15)" },
+          ], { duration: D, fill: "forwards" }).finished,
         ]);
       } else {
-        const p = panel.current, w = walker.current; const ww = w.getBoundingClientRect().width * (stageRef.current.offsetWidth / stageRef.current.getBoundingClientRect().width);
-        const s = 422, end = -ww - 40, off = 0.92 * ww;
+        const p = panel.current, w = walker.current;
         await Promise.all([
-          w.animate([{ transform: `translateX(${s}px)` }, { transform: `translateX(${end}px)` }], { duration: 1100, easing: "linear", fill: "forwards" }).finished,
-          p.animate([{ transform: `translateX(${s + off}px)` }, { transform: `translateX(${end + off}px)` }], { duration: 1100, easing: "linear", fill: "forwards" }).finished,
+          w.animate([{ transform: "translateX(422px)" }, { transform: "translateX(-210.3px)" }], { duration: 1100, easing: "linear", fill: "forwards" }).finished,
+          p.animate([{ transform: "translateX(628.7px)" }, { transform: "translateX(-3.6px)" }], { duration: 1100, easing: "linear", fill: "forwards" }).finished,
         ]);
         if (!alive) return;
         onSwap();
-        await p.animate([{ transform: `translateX(${end + off}px)` }, { transform: `translateX(${end + off - 660}px)` }], { duration: 520, easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" }).finished;
+        w.style.visibility = "hidden";
+        await p.animate([{ transform: "translateX(-53.6px)" }, { transform: "translateX(-693.6px)" }], { duration: 500, easing: OUT, fill: "forwards" }).finished;
       }
       if (alive) onDone();
     };
@@ -240,16 +240,20 @@ function Overlay({ o, stageRef, onSwap, onDone }) {
   const col = `var(--${o.color})`;
   if (o.kind === "fill") return (
     <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "all" }}>
-      <div ref={circle} style={{ position: "absolute", left: o.from.x, top: o.from.y, width: 100, height: 100, borderRadius: "50%", background: col, transform: "translate(-50%,-50%) scale(0.01)" }} />
-      <div ref={eyes} style={{ position: "absolute", left: 201, top: 380, width: 76, height: 44, display: "flex", justifyContent: "space-between", opacity: 0, transform: "translate(-50%,-50%)" }}>
-        <span style={{ width: 28, height: 44, borderRadius: 14, background: "var(--ink)" }} /><span style={{ width: 28, height: 44, borderRadius: 14, background: "var(--ink)" }} />
+      <div ref={move} style={{ position: "absolute", left: o.from.x - 50, top: o.from.y - 50, width: 100, height: 100 }}>
+        <div ref={circle} style={{ width: 100, height: 100, borderRadius: "50%", background: col, transform: "scale(0.01)" }} />
+      </div>
+      <div ref={eyesMove} style={{ position: "absolute", left: 163, top: 358, width: 76, height: 44, opacity: 0 }}>
+        <div ref={eyes} style={{ width: 76, height: 44, display: "flex", justifyContent: "space-between" }}>
+          <span style={{ width: 28, height: 44, borderRadius: 14, background: "var(--ink)" }} /><span style={{ width: 28, height: 44, borderRadius: 14, background: "var(--ink)" }} />
+        </div>
       </div>
     </div>
   );
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "all", overflow: "hidden" }}>
-      <div ref={panel} style={{ position: "absolute", left: 0, top: 0, width: 660, height: "100%", background: col, transform: "translateX(600px)" }} />
-      <div ref={walker} style={{ position: "absolute", left: 0, bottom: 210, transform: "translateX(422px)" }}><Guys colors={[o.color]} height={190} /></div>
+      <div ref={panel} style={{ position: "absolute", left: 0, top: 0, width: 640, height: "100%", background: col, transform: "translateX(628.7px)" }} />
+      <div ref={walker} style={{ position: "absolute", left: -15, top: "calc(50% + 63px)", transform: "translateX(422px)" }}><Guys colors={[o.color]} height={194} /></div>
     </div>
   );
 }
