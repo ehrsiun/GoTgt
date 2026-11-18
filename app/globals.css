@@ -60,8 +60,9 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
   body { background: var(--paper); }
   .shell { padding: 0; gap: 0; display: block; }
   .side { display: none; }
-  .phone-wrap { width: 100vw; height: 100dvh; transform: none !important; }
-  .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
+  /* full screen on phones: run to the very bottom edge (under Safari's floating bar), like a native tab bar */
+  .phone-wrap { position: fixed; top: 0; left: 0; width: 100vw; height: 100lvh; transform: none !important; margin: 0 !important; }
+  .phone { width: 100vw; height: 100lvh; border-radius: 0; box-shadow: none; }
 }
 
 /* ---------- stage + layers ---------- */
@@ -206,3 +207,11 @@ input { font: inherit; color: inherit; border: 0; outline: 0; background: none; 
 @keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(67, 246, 151, 0.5); } 50% { box-shadow: 0 0 0 5px rgba(67, 246, 151, 0); } }
 .notif-in { animation: notifIn 500ms cubic-bezier(0, 0, .58, 1) both; }
 @keyframes notifIn { from { opacity: 0; transform: translateY(-16px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* phones: tab bar sits on the bottom edge, padded for the home indicator */
+@media (max-width: 760px) {
+  .tabbar { height: calc(62px + env(safe-area-inset-bottom)); padding-top: 12px; }
+  .screen.tabbed { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+  .tabbar .postbtn { margin-top: -26px; }
+  .sheet-panel { padding-bottom: max(34px, env(safe-area-inset-bottom)); }
+}

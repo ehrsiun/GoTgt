@@ -6,6 +6,7 @@ import "./globals.css";
 export const metadata = {
   title: "GoTgt",
   description: "Post what you're already doing. Friends can tap in.",
+  appleWebApp: { capable: true, title: "GoTgt", statusBarStyle: "default" },
 };
 export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 
